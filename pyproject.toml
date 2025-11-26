@@ -1,0 +1,17 @@
+[project]
+name = "git-year-end-report"
+version = "0.1.0"
+description = "Generate year-end activity reports from multiple git forges"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.13"
+dependencies = [
+    "pyyaml>=6.0",
+    "httpx>=0.27.0",
+    "typer>=0.12.0",
+    "python-dateutil>=2.9.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+git-year-end-report = "git_year_end_report.cli:main"
