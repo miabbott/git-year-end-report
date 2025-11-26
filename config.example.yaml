@@ -1,0 +1,52 @@
+# Example configuration file for git-year-end-report
+# Copy this file to config.yaml and customize for your needs
+
+# Year to generate report for
+# The tool will collect data from January 1 of this year to the current date
+year: 2025
+
+# Git forges configuration
+# Each forge has a list of repositories and usernames that apply to all repos
+forges:
+  github:
+    # Token can be a literal string or environment variable reference
+    token: ${GITHUB_TOKEN}
+    # Optional: custom API endpoint (for GitHub Enterprise)
+    # endpoint: https://api.github.com
+    # Usernames to track across all repositories in this forge
+    usernames:
+      - github-user1
+      - github-user2
+      - github-user3
+    # List of repositories to track
+    repos:
+      - owner/repository-name
+      - another-owner/another-repo
+      - organization/project-name
+
+  gitlab:
+    token: ${GITLAB_TOKEN}
+    # Optional: custom API endpoint (for self-hosted GitLab)
+    # endpoint: https://gitlab.com/api/v4
+    usernames:
+      - gitlab-user1
+      - gitlab-user2
+    repos:
+      - group/project-name
+      - another-group/another-project
+
+  pagure:
+    token: ${PAGURE_TOKEN}
+    # Optional: custom API endpoint (for self-hosted Pagure)
+    # endpoint: https://pagure.io/api/0
+    usernames:
+      - pagure-user1
+      - pagure-user2
+    repos:
+      - project-name
+      - fork/project-name
+      - namespace/project-name
+
+# Optional: Output file path
+# Default: ./report-{year}.md
+# output: ./custom-report-path.md
