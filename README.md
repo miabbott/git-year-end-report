@@ -103,24 +103,44 @@ export PAGURE_TOKEN="your-pagure-token"
 
 ## Usage
 
-### Local Installation
+### After Installing with uv or pip
 
-Generate a report:
+Once installed, you can use the `git-year-end-report` command:
 
 ```bash
+# Generate a report
 git-year-end-report generate --config config.yaml
-```
 
-Validate configuration without generating a report:
-
-```bash
+# Validate configuration without generating a report
 git-year-end-report validate --config config.yaml
+
+# Specify custom output path
+git-year-end-report generate --config config.yaml --output my-report.md
 ```
 
-Specify custom output path:
+### Running from Repository without Installation
+
+If you haven't installed the package, you can run it using `uv run`:
 
 ```bash
-git-year-end-report generate --config config.yaml --output my-report.md
+# Generate a report
+uv run git-year-end-report generate --config config.yaml
+
+# Validate configuration
+uv run git-year-end-report validate --config config.yaml
+```
+
+Or run it as a Python module:
+
+```bash
+# Activate the virtual environment first
+source .venv/bin/activate
+
+# Then run as a module
+python -m git_year_end_report.cli generate --config config.yaml
+
+# Or use the script directly from the venv
+.venv/bin/git-year-end-report generate --config config.yaml
 ```
 
 ### Container Usage

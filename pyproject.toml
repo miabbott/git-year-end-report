@@ -15,3 +15,6 @@ dependencies = [
 
 [project.scripts]
 git-year-end-report = "git_year_end_report.cli:main"
+
+[tool.uv]
+package = true
