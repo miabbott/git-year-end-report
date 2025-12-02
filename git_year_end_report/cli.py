@@ -1,10 +1,12 @@
 """Command-line interface for git-year-end-report."""
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from .config import load_config
@@ -16,6 +18,26 @@ from .report import generate_markdown_report
 
 app = typer.Typer(help="Generate year-end activity reports from git forges")
 console = Console()
+logger = logging.getLogger("git_year_end_report")
+
+
+def setup_logging(verbose: bool):
+    """Configure logging based on verbosity level."""
+    level = logging.DEBUG if verbose else logging.WARNING
+
+    # Remove any existing handlers
+    logger.handlers.clear()
+
+    # Add rich handler for pretty output
+    handler = RichHandler(console=console, show_time=False, show_path=False)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(handler)
+    logger.setLevel(level)
+
+    # Also configure forge client loggers
+    for forge in ["github", "gitlab", "pagure"]:
+        forge_logger = logging.getLogger(f"git_year_end_report.forges.{forge}")
+        forge_logger.setLevel(level)
 
 
 def main():
@@ -46,12 +68,20 @@ def generate(
         "-f",
         help="Only fetch from specified forge(s). Can be used multiple times. Example: -f github -f gitlab",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose output showing API calls and detailed operations",
+    ),
 ):
     """Generate a year-end activity report from configured git forges.
 
     This command reads the configuration file, fetches statistics from all
     configured git forges, and generates a comprehensive Markdown report.
     """
+    setup_logging(verbose)
+
     try:
         config = load_config(config_file)
     except Exception as e:
@@ -207,6 +237,12 @@ def enumerate(
         "-f",
         help="Only enumerate from specified forge(s). Can be used multiple times.",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose output showing API calls and detailed operations",
+    ),
 ):
     """Enumerate repositories where configured users have been active.
 
@@ -214,6 +250,8 @@ def enumerate(
     filed issues, created pull requests, or made comments. The output is
     formatted as YAML that can be directly inserted into the config file.
     """
+    setup_logging(verbose)
+
     try:
         config = load_config(config_file)
     except Exception as e:

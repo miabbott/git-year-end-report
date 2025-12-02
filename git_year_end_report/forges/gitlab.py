@@ -1,5 +1,6 @@
 """GitLab API client implementation."""
 
+import logging
 from datetime import datetime
 from urllib.parse import quote
 
@@ -7,6 +8,8 @@ import httpx
 
 from ..forge_client import ForgeClient
 from ..models import RepoStats, UserStats
+
+logger = logging.getLogger(__name__)
 
 
 class GitLabClient(ForgeClient):
@@ -102,9 +105,15 @@ class GitLabClient(ForgeClient):
             page = 1
             while True:
                 params["page"] = page
+                logger.debug(f"GitLab API: GET {url} (page {page}, params: {params})")
                 response = client.get(url, params=params)
                 response.raise_for_status()
                 data = response.json()
+
+                if isinstance(data, list):
+                    logger.debug(f"GitLab API: Received {len(data)} items")
+                else:
+                    logger.debug(f"GitLab API: Received single item response")
 
                 if not data:
                     break
@@ -117,10 +126,12 @@ class GitLabClient(ForgeClient):
 
                 total_pages = response.headers.get("X-Total-Pages")
                 if total_pages and page >= int(total_pages):
+                    logger.debug(f"GitLab API: Reached last page ({page}/{total_pages})")
                     break
 
                 page += 1
 
+        logger.debug(f"GitLab API: Total results: {len(results)}")
         return results
 
     def _count_issues(

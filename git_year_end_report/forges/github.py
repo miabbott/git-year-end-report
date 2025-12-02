@@ -1,11 +1,14 @@
 """GitHub API client implementation."""
 
+import logging
 from datetime import datetime
 
 import httpx
 
 from ..forge_client import ForgeClient
 from ..models import RepoStats, UserStats
+
+logger = logging.getLogger(__name__)
 
 
 class GitHubClient(ForgeClient):
@@ -96,20 +99,26 @@ class GitHubClient(ForgeClient):
         params["per_page"] = 100
 
         with httpx.Client(headers=self.headers, timeout=30.0) as client:
+            page_num = 1
             while url:
+                logger.debug(f"GitHub API: GET {url} (page {page_num}, params: {params})")
                 response = client.get(url, params=params)
                 response.raise_for_status()
                 data = response.json()
 
                 if isinstance(data, list):
+                    logger.debug(f"GitHub API: Received {len(data)} items")
                     results.extend(data)
                 else:
+                    logger.debug(f"GitHub API: Received single item response")
                     results.append(data)
 
                 link_header = response.headers.get("Link", "")
                 url = self._get_next_page_url(link_header)
                 params = None
+                page_num += 1
 
+        logger.debug(f"GitHub API: Total results: {len(results)}")
         return results
 
     def _get_next_page_url(self, link_header: str) -> str | None:

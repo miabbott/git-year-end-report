@@ -1,11 +1,14 @@
 """Pagure API client implementation."""
 
+import logging
 from datetime import datetime
 
 import httpx
 
 from ..forge_client import ForgeClient
 from ..models import RepoStats, UserStats
+
+logger = logging.getLogger(__name__)
 
 
 class PagureClient(ForgeClient):
@@ -90,10 +93,13 @@ class PagureClient(ForgeClient):
         """
         params = params or {}
 
+        logger.debug(f"Pagure API: GET {url} (params: {params})")
         with httpx.Client(headers=self.headers, timeout=30.0) as client:
             response = client.get(url, params=params)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            logger.debug(f"Pagure API: Response received")
+            return data
 
     def _count_issues(
         self,

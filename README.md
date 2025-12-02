@@ -124,6 +124,10 @@ git-year-end-report generate --config config.yaml -f github -f gitlab
 # Enumerate repositories where users have been active
 git-year-end-report enumerate --config config.yaml
 git-year-end-report enumerate --config config.yaml --forge github
+
+# Enable verbose output to see API calls and detailed operations
+git-year-end-report generate --config config.yaml --verbose
+git-year-end-report enumerate --config config.yaml -v
 ```
 
 ### Running from Repository without Installation
