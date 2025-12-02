@@ -40,6 +40,12 @@ def generate(
         "-o",
         help="Output file path (overrides config file setting)",
     ),
+    forges: list[str] = typer.Option(
+        None,
+        "--forge",
+        "-f",
+        help="Only fetch from specified forge(s). Can be used multiple times. Example: -f github -f gitlab",
+    ),
 ):
     """Generate a year-end activity report from configured git forges.
 
@@ -52,6 +58,23 @@ def generate(
         console.print(f"[red]Error loading configuration:[/red] {e}")
         raise typer.Exit(1)
 
+    # Filter forges if specified on command line
+    if forges:
+        forge_names_lower = [f.lower() for f in forges]
+        filtered_forges = [
+            fc for fc in config.forges if fc.name.lower() in forge_names_lower
+        ]
+        if not filtered_forges:
+            console.print(
+                f"[red]Error: None of the specified forges ({', '.join(forges)}) "
+                f"are configured in {config_file}[/red]"
+            )
+            raise typer.Exit(1)
+        config.forges = filtered_forges
+        console.print(
+            f"[yellow]Filtering to forges: {', '.join(fc.name for fc in config.forges)}[/yellow]\n"
+        )
+
     start_date = datetime(config.year, 1, 1)
     end_date = datetime.now()
 
@@ -62,7 +85,7 @@ def generate(
 
     output_path = output or config.output or f"report-{config.year}.md"
 
-    console.print(f"\n[bold blue]Git Year-End Report Generator[/bold blue]")
+    console.print(f"[bold blue]Git Year-End Report Generator[/bold blue]")
     console.print(f"Year: {config.year}")
     console.print(f"Period: {start_date.date()} to {end_date.date()}")
     console.print(f"Output: {output_path}\n")

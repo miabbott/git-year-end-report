@@ -116,6 +116,10 @@ git-year-end-report validate --config config.yaml
 
 # Specify custom output path
 git-year-end-report generate --config config.yaml --output my-report.md
+
+# Fetch from specific forge(s) only (useful for testing)
+git-year-end-report generate --config config.yaml --forge github
+git-year-end-report generate --config config.yaml -f github -f gitlab
 ```
 
 ### Running from Repository without Installation
@@ -128,6 +132,9 @@ uv run git-year-end-report generate --config config.yaml
 
 # Validate configuration
 uv run git-year-end-report validate --config config.yaml
+
+# Fetch from specific forge(s) only
+uv run git-year-end-report generate --config config.yaml --forge github
 ```
 
 Or run it as a Python module:
