@@ -151,6 +151,9 @@ class GitHubClient(ForgeClient):
     ) -> int:
         """Count issues for a user in a date range.
 
+        Uses GitHub Search API to fetch user's issues with date filtering,
+        then filters to target repository.
+
         Args:
             repo: Repository in format "owner/repo"
             username: GitHub username
@@ -162,32 +165,32 @@ class GitHubClient(ForgeClient):
         Returns:
             Number of issues
         """
-        url = f"{self.endpoint}/repos/{repo}/issues"
-        params = {
-            "creator": username if created else None,
-            "state": state if not created else "all",
-            "since": start_date.isoformat(),
-        }
-        params = {k: v for k, v in params.items() if v is not None}
+        url = f"{self.endpoint}/search/issues"
 
-        issues = self._make_request(url, params)
-        issues = [i for i in issues if "pull_request" not in i]
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
+        date_qualifier = "created" if created else "closed"
 
-        if created:
-            issues = [
-                i
-                for i in issues
-                if start_date <= datetime.fromisoformat(i["created_at"].replace("Z", "+00:00")) <= end_date
-            ]
-        else:
-            issues = [
-                i
-                for i in issues
-                if i.get("closed_at")
-                and start_date <= datetime.fromisoformat(i["closed_at"].replace("Z", "+00:00")) <= end_date
-            ]
+        # Build search query: author, repo, type, date range, and optionally state
+        query_parts = [
+            f"author:{username}",
+            f"repo:{repo}",
+            "type:issue",
+            f"{date_qualifier}:{date_range}",
+        ]
 
-        return len(issues)
+        if not created:
+            query_parts.append(f"state:{state}")
+
+        query = " ".join(query_parts)
+        params = {"q": query, "per_page": 100}
+
+        try:
+            response = self._make_request(url, params)
+            # Search API returns {"items": [...]} format
+            items = response[0].get("items", []) if response else []
+            return len(items)
+        except Exception:
+            return 0
 
     def _count_pull_requests(
         self,
@@ -200,6 +203,9 @@ class GitHubClient(ForgeClient):
     ) -> int:
         """Count pull requests for a user in a date range.
 
+        Uses GitHub Search API to fetch user's PRs with date filtering,
+        then filters to target repository.
+
         Args:
             repo: Repository in format "owner/repo"
             username: GitHub username
@@ -211,35 +217,39 @@ class GitHubClient(ForgeClient):
         Returns:
             Number of pull requests
         """
-        url = f"{self.endpoint}/repos/{repo}/pulls"
-        params = {
-            "creator": username if created else None,
-            "state": state if not created else "all",
-        }
-        params = {k: v for k, v in params.items() if v is not None}
+        url = f"{self.endpoint}/search/issues"
 
-        prs = self._make_request(url, params)
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
+        date_qualifier = "created" if created else "closed"
 
-        if created:
-            prs = [
-                pr
-                for pr in prs
-                if start_date <= datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00")) <= end_date
-            ]
-        else:
-            prs = [
-                pr
-                for pr in prs
-                if pr.get("closed_at")
-                and start_date <= datetime.fromisoformat(pr["closed_at"].replace("Z", "+00:00")) <= end_date
-            ]
+        # Build search query: author, repo, type, date range, and optionally state
+        query_parts = [
+            f"author:{username}",
+            f"repo:{repo}",
+            "type:pr",
+            f"{date_qualifier}:{date_range}",
+        ]
 
-        return len(prs)
+        if not created:
+            query_parts.append(f"state:{state}")
+
+        query = " ".join(query_parts)
+        params = {"q": query, "per_page": 100}
+
+        try:
+            response = self._make_request(url, params)
+            # Search API returns {"items": [...]} format
+            items = response[0].get("items", []) if response else []
+            return len(items)
+        except Exception:
+            return 0
 
     def _count_merged_pull_requests(
         self, repo: str, username: str, start_date: datetime, end_date: datetime
     ) -> int:
         """Count merged pull requests for a user in a date range.
+
+        Uses GitHub Search API to fetch user's merged PRs with date filtering.
 
         Args:
             repo: Repository in format "owner/repo"
@@ -250,23 +260,28 @@ class GitHubClient(ForgeClient):
         Returns:
             Number of merged pull requests
         """
-        url = f"{self.endpoint}/repos/{repo}/pulls"
-        params = {"creator": username, "state": "closed"}
+        url = f"{self.endpoint}/search/issues"
 
-        prs = self._make_request(url, params)
-        merged_prs = [
-            pr
-            for pr in prs
-            if pr.get("merged_at")
-            and start_date <= datetime.fromisoformat(pr["merged_at"].replace("Z", "+00:00")) <= end_date
-        ]
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
 
-        return len(merged_prs)
+        # Build search query: author, repo, type, merged state, and merged date
+        query = f"author:{username} repo:{repo} type:pr is:merged merged:{date_range}"
+        params = {"q": query, "per_page": 100}
+
+        try:
+            response = self._make_request(url, params)
+            # Search API returns {"items": [...]} format
+            items = response[0].get("items", []) if response else []
+            return len(items)
+        except Exception:
+            return 0
 
     def _count_commits(
         self, repo: str, username: str, start_date: datetime, end_date: datetime
     ) -> int:
         """Count commits for a user in a date range.
+
+        Uses GitHub Search API to fetch user's commits with date filtering.
 
         Args:
             repo: Repository in format "owner/repo"
@@ -277,21 +292,34 @@ class GitHubClient(ForgeClient):
         Returns:
             Number of commits
         """
-        url = f"{self.endpoint}/repos/{repo}/commits"
-        params = {
-            "author": username,
-            "since": start_date.isoformat(),
-            "until": end_date.isoformat(),
-        }
+        url = f"{self.endpoint}/search/commits"
 
-        commits = self._make_request(url, params)
-        return len(commits)
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
+
+        # Build search query: author, repo, and author date
+        query = f"author:{username} repo:{repo} author-date:{date_range}"
+        params = {"q": query, "per_page": 100}
+
+        try:
+            response = self._make_request(url, params)
+            # Search API returns {"items": [...]} format
+            items = response[0].get("items", []) if response else []
+            return len(items)
+        except Exception:
+            return 0
 
     def _count_pr_comments(
         self, repo: str, username: str, start_date: datetime, end_date: datetime
     ) -> int:
         """Count PR review comments for a user in a date range.
 
+        Uses GitHub Search API to find PRs where user commented, filtering
+        to target repository and date range. This counts the number of PRs
+        with comments, not individual comment count.
+
+        Note: GitHub's search API doesn't provide granular comment counting,
+        so this approximates activity by counting PRs with user comments.
+
         Args:
             repo: Repository in format "owner/repo"
             username: GitHub username
@@ -299,26 +327,36 @@ class GitHubClient(ForgeClient):
             end_date: End of date range
 
         Returns:
-            Number of PR review comments
+            Number of PRs where user commented
         """
-        url = f"{self.endpoint}/repos/{repo}/pulls/comments"
-        params = {"since": start_date.isoformat()}
+        url = f"{self.endpoint}/search/issues"
 
-        comments = self._make_request(url, params)
-        user_comments = [
-            c
-            for c in comments
-            if c["user"]["login"] == username
-            and start_date <= datetime.fromisoformat(c["created_at"].replace("Z", "+00:00")) <= end_date
-        ]
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
 
-        return len(user_comments)
+        # Build search query: commenter, repo, type, and date range
+        query = f"commenter:{username} repo:{repo} type:pr updated:{date_range}"
+        params = {"q": query, "per_page": 100}
+
+        try:
+            response = self._make_request(url, params)
+            # Search API returns {"items": [...]} format
+            items = response[0].get("items", []) if response else []
+            return len(items)
+        except Exception:
+            return 0
 
     def _count_issue_comments(
         self, repo: str, username: str, start_date: datetime, end_date: datetime
     ) -> int:
         """Count issue comments for a user in a date range.
 
+        Uses GitHub Search API to find issues where user commented, filtering
+        to target repository and date range. This counts the number of issues
+        with comments, not individual comment count.
+
+        Note: GitHub's search API doesn't provide granular comment counting,
+        so this approximates activity by counting issues with user comments.
+
         Args:
             repo: Repository in format "owner/repo"
             username: GitHub username
@@ -326,20 +364,23 @@ class GitHubClient(ForgeClient):
             end_date: End of date range
 
         Returns:
-            Number of issue comments
+            Number of issues where user commented
         """
-        url = f"{self.endpoint}/repos/{repo}/issues/comments"
-        params = {"since": start_date.isoformat()}
+        url = f"{self.endpoint}/search/issues"
 
-        comments = self._make_request(url, params)
-        user_comments = [
-            c
-            for c in comments
-            if c["user"]["login"] == username
-            and start_date <= datetime.fromisoformat(c["created_at"].replace("Z", "+00:00")) <= end_date
-        ]
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
 
-        return len(user_comments)
+        # Build search query: commenter, repo, type, and date range
+        query = f"commenter:{username} repo:{repo} type:issue updated:{date_range}"
+        params = {"q": query, "per_page": 100}
+
+        try:
+            response = self._make_request(url, params)
+            # Search API returns {"items": [...]} format
+            items = response[0].get("items", []) if response else []
+            return len(items)
+        except Exception:
+            return 0
 
     def enumerate_repos(
         self,
