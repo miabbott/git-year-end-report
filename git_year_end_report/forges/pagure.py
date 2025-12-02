@@ -121,36 +121,27 @@ class PagureClient(ForgeClient):
         Returns:
             Number of issues
         """
-        url = f"{self.endpoint}/{repo}/issues"
+        url = f"{self.endpoint}/user/{username}/issues"
+
+        # Use created or closed date filter based on what we're counting
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
         params = {
             "status": "all",
-            "author": username if created else None,
+            "created" if created else "closed": date_range,
         }
-        params = {k: v for k, v in params.items() if v is not None}
 
         try:
             data = self._make_request(url, params)
             issues = data.get("issues", [])
 
-            if created:
-                issues = [
-                    i
-                    for i in issues
-                    if start_date.timestamp()
-                    <= float(i.get("date_created", 0))
-                    <= end_date.timestamp()
-                ]
-            else:
-                issues = [
-                    i
-                    for i in issues
-                    if i.get("closed_at")
-                    and start_date.timestamp()
-                    <= float(i["closed_at"])
-                    <= end_date.timestamp()
-                ]
+            # Filter to only issues in the target repository
+            filtered_issues = [
+                i
+                for i in issues
+                if i.get("project", {}).get("fullname", "") == repo
+            ]
 
-            return len(issues)
+            return len(filtered_issues)
         except Exception:
             return 0
 
@@ -174,36 +165,27 @@ class PagureClient(ForgeClient):
         Returns:
             Number of pull requests
         """
-        url = f"{self.endpoint}/{repo}/pull-requests"
+        url = f"{self.endpoint}/user/{username}/requests/filed"
+
+        # Use created or closed date filter based on what we're counting
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
         params = {
             "status": "all",
-            "author": username if created else None,
+            "created" if created else "closed": date_range,
         }
-        params = {k: v for k, v in params.items() if v is not None}
 
         try:
             data = self._make_request(url, params)
             prs = data.get("requests", [])
 
-            if created:
-                prs = [
-                    pr
-                    for pr in prs
-                    if start_date.timestamp()
-                    <= float(pr.get("date_created", 0))
-                    <= end_date.timestamp()
-                ]
-            else:
-                prs = [
-                    pr
-                    for pr in prs
-                    if pr.get("closed_at")
-                    and start_date.timestamp()
-                    <= float(pr["closed_at"])
-                    <= end_date.timestamp()
-                ]
+            # Filter to only PRs in the target repository
+            filtered_prs = [
+                pr
+                for pr in prs
+                if pr.get("project", {}).get("fullname", "") == repo
+            ]
 
-            return len(prs)
+            return len(filtered_prs)
         except Exception:
             return 0
 
@@ -221,17 +203,19 @@ class PagureClient(ForgeClient):
         Returns:
             Number of merged pull requests
         """
-        url = f"{self.endpoint}/{repo}/pull-requests"
-        params = {"status": "Merged", "author": username}
+        url = f"{self.endpoint}/user/{username}/requests/filed"
+        params = {"status": "Merged"}
 
         try:
             data = self._make_request(url, params)
             prs = data.get("requests", [])
 
+            # Filter to only merged PRs in the target repository within date range
             merged_prs = [
                 pr
                 for pr in prs
-                if pr.get("date_merged")
+                if pr.get("project", {}).get("fullname", "") == repo
+                and pr.get("date_merged")
                 and start_date.timestamp()
                 <= float(pr["date_merged"])
                 <= end_date.timestamp()
@@ -280,6 +264,9 @@ class PagureClient(ForgeClient):
     ) -> int:
         """Count PR comments for a user in a date range.
 
+        Uses user-centric API to get PRs in the target repo, then fetches
+        comments only for those PRs to count user's comments.
+
         Args:
             repo: Repository name
             username: Pagure username
@@ -289,6 +276,8 @@ class PagureClient(ForgeClient):
         Returns:
             Number of PR comments
         """
+        # Get all PRs in the target repo within date range
+        # This includes PRs where user may have commented even if not author
         url = f"{self.endpoint}/{repo}/pull-requests"
         params = {"status": "all"}
 
@@ -296,8 +285,16 @@ class PagureClient(ForgeClient):
             data = self._make_request(url, params)
             prs = data.get("requests", [])
 
+            # Filter PRs to those active in our date range
+            date_filtered_prs = [
+                pr
+                for pr in prs
+                if pr.get("date_created")
+                and float(pr.get("date_created", 0)) <= end_date.timestamp()
+            ]
+
             comment_count = 0
-            for pr in prs:
+            for pr in date_filtered_prs:
                 pr_url = f"{self.endpoint}/{repo}/pull-request/{pr['id']}"
                 pr_data = self._make_request(pr_url)
 
@@ -321,6 +318,9 @@ class PagureClient(ForgeClient):
     ) -> int:
         """Count issue comments for a user in a date range.
 
+        Gets issues from the target repo, then fetches comments only for
+        those issues to count user's comments.
+
         Args:
             repo: Repository name
             username: Pagure username
@@ -337,8 +337,16 @@ class PagureClient(ForgeClient):
             data = self._make_request(url, params)
             issues = data.get("issues", [])
 
+            # Filter issues to those active in our date range
+            date_filtered_issues = [
+                issue
+                for issue in issues
+                if issue.get("date_created")
+                and float(issue.get("date_created", 0)) <= end_date.timestamp()
+            ]
+
             comment_count = 0
-            for issue in issues:
+            for issue in date_filtered_issues:
                 issue_url = f"{self.endpoint}/{repo}/issue/{issue['id']}"
                 issue_data = self._make_request(issue_url)
 
