@@ -1,6 +1,6 @@
 """Command-line interface for git-year-end-report."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
@@ -75,11 +75,11 @@ def generate(
             f"[yellow]Filtering to forges: {', '.join(fc.name for fc in config.forges)}[/yellow]\n"
         )
 
-    start_date = datetime(config.year, 1, 1)
-    end_date = datetime.now()
+    start_date = datetime(config.year, 1, 1, tzinfo=timezone.utc)
+    end_date = datetime.now(timezone.utc)
 
     if end_date.year != config.year:
-        end_date = datetime(config.year, 12, 31, 23, 59, 59)
+        end_date = datetime(config.year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
     report = Report(year=config.year, start_date=start_date, end_date=end_date)
 
