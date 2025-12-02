@@ -417,11 +417,14 @@ class GitLabClient(ForgeClient):
         try:
             issues = self._make_request(url, params)
             for issue in issues:
-                project = issue.get("references", {}).get("full", "")
-                if project:
-                    # Remove leading # from references like "#group/project"
-                    project = project.lstrip("#")
-                    repos.add(project)
+                # Use web_url to extract project path
+                web_url = issue.get("web_url", "")
+                if web_url:
+                    # Extract project path from URL like https://gitlab.com/group/project/-/issues/123
+                    parts = web_url.split("/-/")
+                    if len(parts) >= 2:
+                        project = parts[0].split("/", 3)[-1]  # Get everything after gitlab.com/
+                        repos.add(project)
         except Exception:
             pass
 
@@ -452,11 +455,14 @@ class GitLabClient(ForgeClient):
         try:
             mrs = self._make_request(url, params)
             for mr in mrs:
-                project = mr.get("references", {}).get("full", "")
-                if project:
-                    # Remove leading ! from references like "!group/project"
-                    project = project.lstrip("!")
-                    repos.add(project)
+                # Use web_url to extract project path
+                web_url = mr.get("web_url", "")
+                if web_url:
+                    # Extract project path from URL like https://gitlab.com/group/project/-/merge_requests/123
+                    parts = web_url.split("/-/")
+                    if len(parts) >= 2:
+                        project = parts[0].split("/", 3)[-1]  # Get everything after gitlab.com/
+                        repos.add(project)
         except Exception:
             pass
 
