@@ -77,19 +77,37 @@ The tool requires read-only API tokens for each forge:
 
 #### GitHub
 
-Create a personal access token at https://github.com/settings/tokens with these scopes:
-- `repo` (for private repositories)
-- `public_repo` (for public repositories only)
+Create a fine-grained personal access token (recommended) or classic personal access token:
+
+**Fine-grained tokens** (recommended):
+1. Go to https://github.com/settings/personal-access-tokens/new
+2. Set token name and expiration
+3. Under "Repository access", select:
+   - "Public Repositories (read-only)" for public repos only, OR
+   - "All repositories" or specific repositories if you need access to private repos
+4. Under "Permissions", set "Repository permissions":
+   - **Contents**: Read-only (for commits)
+   - **Issues**: Read-only (for issues and comments)
+   - **Metadata**: Read-only (automatically included)
+   - **Pull requests**: Read-only (for PRs and comments)
+5. Click "Generate token"
+
+**Classic tokens** (legacy):
+1. Go to https://github.com/settings/tokens
+2. Click "Generate new token (classic)"
+3. Select scopes:
+   - `repo` (for private repositories)
+   - `public_repo` (for public repositories only)
 
 #### GitLab
 
-Create a personal access token at https://gitlab.com/-/profile/personal_access_tokens with these scopes:
-- `read_api`
+Create a personal access token at https://gitlab.com/-/user_settings/personal_access_tokens with these scopes:
+- `read_api` - Read access to the API, including projects, issues, and merge requests
+- `read_user` - Read access to user profile and events
 
 #### Pagure
 
-Create an API token at https://pagure.io/settings#api-keys with these ACLs:
-- `Read access to project information and metadata`
+No API token is required for Pagure. The tool only supports public repositories and accesses them without authentication.
 
 ### Environment Variables
 
@@ -98,7 +116,7 @@ Store tokens securely using environment variables:
 ```bash
 export GITHUB_TOKEN="your-github-token"
 export GITLAB_TOKEN="your-gitlab-token"
-export PAGURE_TOKEN="your-pagure-token"
+# PAGURE_TOKEN is not required - Pagure uses unauthenticated access for public repos
 ```
 
 ## Usage
