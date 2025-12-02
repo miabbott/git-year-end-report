@@ -12,13 +12,17 @@ logger = logging.getLogger(__name__)
 
 
 class PagureClient(ForgeClient):
-    """Pagure API client for fetching repository statistics."""
+    """Pagure API client for fetching repository statistics.
+
+    Note: This client only supports public repositories and does not require
+    an API token. All API calls are made without authentication.
+    """
 
     def __init__(self, token: str | None = None, endpoint: str = "https://pagure.io/api/0"):
         """Initialize Pagure client.
 
         Args:
-            token: Pagure API token
+            token: Pagure API token (optional, not required for public repos)
             endpoint: API endpoint URL (for self-hosted Pagure)
         """
         super().__init__(token)

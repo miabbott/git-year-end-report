@@ -36,7 +36,9 @@ forges:
       - another-group/another-project
 
   pagure:
-    token: ${PAGURE_TOKEN}
+    # Token is optional - only needed for private repositories
+    # For public repos, you can omit the token line or leave it empty
+    # token: ${PAGURE_TOKEN}
     # Optional: custom API endpoint (for self-hosted Pagure)
     # endpoint: https://pagure.io/api/0
     usernames:
