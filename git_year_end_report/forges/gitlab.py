@@ -279,12 +279,21 @@ class GitLabClient(ForgeClient):
             Number of MR comments
         """
         url = f"{self.endpoint}/projects/{project_id}/merge_requests"
-        mrs = self._make_request(url, {"state": "all"})
+        # Only fetch MRs updated after start_date to reduce API calls
+        params = {
+            "state": "all",
+            "updated_after": start_date.isoformat(),
+        }
+        mrs = self._make_request(url, params)
 
         comment_count = 0
         for mr in mrs:
             notes_url = f"{self.endpoint}/projects/{project_id}/merge_requests/{mr['iid']}/notes"
-            notes = self._make_request(notes_url)
+            params_notes = {
+                "sort": "asc",
+                "order_by": "created_at",
+            }
+            notes = self._make_request(notes_url, params_notes)
 
             user_notes = [
                 n
@@ -314,14 +323,23 @@ class GitLabClient(ForgeClient):
             Number of issue comments
         """
         url = f"{self.endpoint}/projects/{project_id}/issues"
-        issues = self._make_request(url, {"state": "all"})
+        # Only fetch issues updated after start_date to reduce API calls
+        params = {
+            "state": "all",
+            "updated_after": start_date.isoformat(),
+        }
+        issues = self._make_request(url, params)
 
         comment_count = 0
         for issue in issues:
             notes_url = (
                 f"{self.endpoint}/projects/{project_id}/issues/{issue['iid']}/notes"
             )
-            notes = self._make_request(notes_url)
+            params_notes = {
+                "sort": "asc",
+                "order_by": "created_at",
+            }
+            notes = self._make_request(notes_url, params_notes)
 
             user_notes = [
                 n
