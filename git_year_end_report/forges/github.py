@@ -103,6 +103,7 @@ class GitHubClient(ForgeClient):
             while url:
                 logger.debug(f"GitHub API: GET {url} (page {page_num}, params: {params})")
                 response = client.get(url, params=params)
+                self.api_call_count += 1
                 response.raise_for_status()
                 data = response.json()
 

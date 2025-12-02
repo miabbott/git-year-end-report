@@ -20,6 +20,7 @@ class ForgeClient(ABC):
             token: API token for authentication (optional)
         """
         self.token = token
+        self.api_call_count = 0
 
     @abstractmethod
     def get_repo_stats(
@@ -72,3 +73,15 @@ class ForgeClient(ABC):
             Set of repository identifiers (e.g., "owner/repo")
         """
         pass
+
+    def get_api_call_count(self) -> int:
+        """Get the number of API calls made by this client.
+
+        Returns:
+            Total number of API calls
+        """
+        return self.api_call_count
+
+    def reset_api_call_count(self) -> None:
+        """Reset the API call counter to zero."""
+        self.api_call_count = 0

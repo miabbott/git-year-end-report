@@ -126,6 +126,9 @@ def generate(
         "pagure": PagureClient,
     }
 
+    # Track API calls per forge
+    api_call_counts = {}
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -172,6 +175,18 @@ def generate(
                     )
 
                 progress.remove_task(task)
+
+            # Store API call count for this forge
+            api_call_counts[forge_config.name] = client.get_api_call_count()
+
+    # Display API call statistics if verbose mode is enabled
+    if verbose:
+        console.print("\n[bold blue]API Call Statistics[/bold blue]")
+        total_calls = 0
+        for forge_name, count in api_call_counts.items():
+            console.print(f"  {forge_name}: {count} API calls")
+            total_calls += count
+        console.print(f"  [bold]Total: {total_calls} API calls[/bold]\n")
 
     console.print("\n[bold green]Generating report...[/bold green]")
 
@@ -289,6 +304,7 @@ def enumerate(
     }
 
     results = {}
+    api_call_counts = {}
 
     with Progress(
         SpinnerColumn(),
@@ -335,6 +351,18 @@ def enumerate(
                 )
 
             progress.remove_task(task)
+
+            # Store API call count for this forge
+            api_call_counts[forge_config.name] = client.get_api_call_count()
+
+    # Display API call statistics if verbose mode is enabled
+    if verbose:
+        console.print("\n[bold blue]API Call Statistics[/bold blue]")
+        total_calls = 0
+        for forge_name, count in api_call_counts.items():
+            console.print(f"  {forge_name}: {count} API calls")
+            total_calls += count
+        console.print(f"  [bold]Total: {total_calls} API calls[/bold]\n")
 
     # Output YAML-formatted results
     console.print("\n[bold green]Discovered Repositories[/bold green]\n")

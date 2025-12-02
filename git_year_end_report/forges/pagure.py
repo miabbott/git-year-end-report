@@ -96,6 +96,7 @@ class PagureClient(ForgeClient):
         logger.debug(f"Pagure API: GET {url} (params: {params})")
         with httpx.Client(headers=self.headers, timeout=30.0) as client:
             response = client.get(url, params=params)
+            self.api_call_count += 1
             response.raise_for_status()
             data = response.json()
             logger.debug(f"Pagure API: Response received")
