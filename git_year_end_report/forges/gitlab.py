@@ -280,6 +280,9 @@ class GitLabClient(ForgeClient):
     ) -> int:
         """Count merge request comments for a user in a date range.
 
+        Uses the user events API to find comments by the user, then filters
+        to only those in the target project.
+
         Args:
             project_id: URL-encoded project ID
             username: GitLab username
@@ -289,33 +292,44 @@ class GitLabClient(ForgeClient):
         Returns:
             Number of MR comments
         """
-        url = f"{self.endpoint}/projects/{project_id}/merge_requests"
-        # Only fetch MRs updated after start_date to reduce API calls
+        # Get user ID first
+        user_id = self._get_user_id(username)
+        if not user_id:
+            return 0
+
+        # Fetch user events and filter for comment events in this project
+        url = f"{self.endpoint}/users/{user_id}/events"
         params = {
-            "state": "all",
-            "updated_after": start_date.isoformat(),
+            "after": start_date.date().isoformat(),
+            "before": end_date.date().isoformat(),
+            "action": "commented",
         }
-        mrs = self._make_request(url, params)
 
+        events = self._make_request(url, params)
+
+        # Decode project_id for comparison
+        target_project = project_id.replace("%2F", "/")
+
+        # Count comments on MRs in this specific project
         comment_count = 0
-        for mr in mrs:
-            notes_url = f"{self.endpoint}/projects/{project_id}/merge_requests/{mr['iid']}/notes"
-            params_notes = {
-                "sort": "asc",
-                "order_by": "created_at",
-            }
-            notes = self._make_request(notes_url, params_notes)
+        for event in events:
+            # Check if event is in our target project using path_with_namespace
+            project = event.get("project", {})
+            project_path = project.get("path_with_namespace", "")
 
-            user_notes = [
-                n
-                for n in notes
-                if n["author"]["username"] == username
-                and not n.get("system", False)
-                and start_date
-                <= datetime.fromisoformat(n["created_at"].replace("Z", "+00:00"))
-                <= end_date
-            ]
-            comment_count += len(user_notes)
+            if project_path == target_project:
+                target_type = event.get("target_type")
+                if target_type == "Note":
+                    note = event.get("note", {})
+                    noteable_type = note.get("noteable_type")
+
+                    # Check if it's a MR comment
+                    if noteable_type == "MergeRequest":
+                        created_at = datetime.fromisoformat(
+                            event["created_at"].replace("Z", "+00:00")
+                        )
+                        if start_date <= created_at <= end_date and not note.get("system", False):
+                            comment_count += 1
 
         return comment_count
 
@@ -323,6 +337,9 @@ class GitLabClient(ForgeClient):
         self, project_id: str, username: str, start_date: datetime, end_date: datetime
     ) -> int:
         """Count issue comments for a user in a date range.
+
+        Uses the user events API to find comments by the user, then filters
+        to only those in the target project.
 
         Args:
             project_id: URL-encoded project ID
@@ -333,35 +350,44 @@ class GitLabClient(ForgeClient):
         Returns:
             Number of issue comments
         """
-        url = f"{self.endpoint}/projects/{project_id}/issues"
-        # Only fetch issues updated after start_date to reduce API calls
+        # Get user ID first
+        user_id = self._get_user_id(username)
+        if not user_id:
+            return 0
+
+        # Fetch user events and filter for comment events in this project
+        url = f"{self.endpoint}/users/{user_id}/events"
         params = {
-            "state": "all",
-            "updated_after": start_date.isoformat(),
+            "after": start_date.date().isoformat(),
+            "before": end_date.date().isoformat(),
+            "action": "commented",
         }
-        issues = self._make_request(url, params)
 
+        events = self._make_request(url, params)
+
+        # Decode project_id for comparison
+        target_project = project_id.replace("%2F", "/")
+
+        # Count comments on issues in this specific project
         comment_count = 0
-        for issue in issues:
-            notes_url = (
-                f"{self.endpoint}/projects/{project_id}/issues/{issue['iid']}/notes"
-            )
-            params_notes = {
-                "sort": "asc",
-                "order_by": "created_at",
-            }
-            notes = self._make_request(notes_url, params_notes)
+        for event in events:
+            # Check if event is in our target project using path_with_namespace
+            project = event.get("project", {})
+            project_path = project.get("path_with_namespace", "")
 
-            user_notes = [
-                n
-                for n in notes
-                if n["author"]["username"] == username
-                and not n.get("system", False)
-                and start_date
-                <= datetime.fromisoformat(n["created_at"].replace("Z", "+00:00"))
-                <= end_date
-            ]
-            comment_count += len(user_notes)
+            if project_path == target_project:
+                target_type = event.get("target_type")
+                if target_type == "Note":
+                    note = event.get("note", {})
+                    noteable_type = note.get("noteable_type")
+
+                    # Check if it's an issue comment
+                    if noteable_type == "Issue":
+                        created_at = datetime.fromisoformat(
+                            event["created_at"].replace("Z", "+00:00")
+                        )
+                        if start_date <= created_at <= end_date and not note.get("system", False):
+                            comment_count += 1
 
         return comment_count
 
