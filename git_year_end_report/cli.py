@@ -189,3 +189,138 @@ def validate(
 
 if __name__ == "__main__":
     main()
+
+@app.command()
+def enumerate(
+    config_file: Path = typer.Option(
+        "config.yaml",
+        "--config",
+        "-c",
+        help="Path to configuration file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    forges: list[str] = typer.Option(
+        None,
+        "--forge",
+        "-f",
+        help="Only enumerate from specified forge(s). Can be used multiple times.",
+    ),
+):
+    """Enumerate repositories where configured users have been active.
+
+    This command discovers all repositories where the configured users have
+    filed issues, created pull requests, or made comments. The output is
+    formatted as YAML that can be directly inserted into the config file.
+    """
+    try:
+        config = load_config(config_file)
+    except Exception as e:
+        console.print(f"[red]Error loading configuration:[/red] {e}")
+        raise typer.Exit(1)
+
+    # Filter forges if specified on command line
+    if forges:
+        forge_names_lower = [f.lower() for f in forges]
+        filtered_forges = [
+            fc for fc in config.forges if fc.name.lower() in forge_names_lower
+        ]
+        if not filtered_forges:
+            console.print(
+                f"[red]Error: None of the specified forges ({', '.join(forges)}) "
+                f"are configured in {config_file}[/red]"
+            )
+            raise typer.Exit(1)
+        config.forges = filtered_forges
+
+    start_date = datetime(config.year, 1, 1, tzinfo=timezone.utc)
+    end_date = datetime.now(timezone.utc)
+
+    if end_date.year != config.year:
+        end_date = datetime(config.year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+
+    console.print(f"\n[bold blue]Repository Enumeration[/bold blue]")
+    console.print(f"Year: {config.year}")
+    console.print(f"Period: {start_date.date()} to {end_date.date()}\n")
+
+    forge_clients = {
+        "github": GitHubClient,
+        "gitlab": GitLabClient,
+        "pagure": PagureClient,
+    }
+
+    results = {}
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        for forge_config in config.forges:
+            forge_name = forge_config.name.lower()
+
+            if forge_name not in forge_clients:
+                console.print(
+                    f"[yellow]Warning: Unknown forge '{forge_name}', skipping[/yellow]"
+                )
+                continue
+
+            client_class = forge_clients[forge_name]
+            endpoint = forge_config.endpoint
+
+            if endpoint:
+                client = client_class(token=forge_config.token, endpoint=endpoint)
+            else:
+                client = client_class(token=forge_config.token)
+
+            task = progress.add_task(
+                f"Enumerating repos for {forge_config.name}...", total=None
+            )
+
+            try:
+                repos = client.enumerate_repos(
+                    forge_config.usernames, start_date, end_date
+                )
+                results[forge_config.name] = sorted(repos)
+                progress.update(
+                    task,
+                    description=f"[green]Found {len(repos)} repos for {forge_config.name}[/green]",
+                )
+            except Exception as e:
+                progress.update(
+                    task,
+                    description=f"[red]Error for {forge_config.name}: {e}[/red]",
+                )
+                console.print(
+                    f"[red]Error enumerating {forge_config.name}:[/red] {e}"
+                )
+
+            progress.remove_task(task)
+
+    # Output YAML-formatted results
+    console.print("\n[bold green]Discovered Repositories[/bold green]\n")
+    console.print("Copy this into your config.yaml file:\n")
+    console.print("```yaml")
+    console.print("forges:")
+
+    for forge_name, repos in results.items():
+        if repos:
+            console.print(f"  {forge_name.lower()}:")
+            console.print(f"    token: ${{{forge_name.upper()}_TOKEN}}")
+            console.print("    usernames:")
+            # Get usernames from config
+            forge_config = next(
+                (fc for fc in config.forges if fc.name.lower() == forge_name.lower()),
+                None,
+            )
+            if forge_config:
+                for username in forge_config.usernames:
+                    console.print(f"      - {username}")
+            console.print("    repos:")
+            for repo in repos:
+                console.print(f"      - {repo}")
+            console.print()
+
+    console.print("```")
+

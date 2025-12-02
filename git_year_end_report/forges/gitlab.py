@@ -335,3 +335,129 @@ class GitLabClient(ForgeClient):
             comment_count += len(user_notes)
 
         return comment_count
+
+    def enumerate_repos(
+        self,
+        usernames: list[str],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> set[str]:
+        """Enumerate repositories where users have been active.
+
+        Uses GitLab's API to find projects where the specified users
+        have activity.
+
+        Args:
+            usernames: List of GitLab usernames to search for
+            start_date: Start of date range
+            end_date: End of date range
+
+        Returns:
+            Set of repository identifiers in "group/project" format
+        """
+        repos = set()
+
+        for username in usernames:
+            # Get user ID first
+            user_id = self._get_user_id(username)
+            if not user_id:
+                continue
+
+            # Get issues created by user
+            repos.update(self._get_user_issues(user_id, start_date, end_date))
+
+            # Get merge requests created by user
+            repos.update(self._get_user_merge_requests(user_id, start_date, end_date))
+
+        return repos
+
+    def _get_user_id(self, username: str) -> int | None:
+        """Get the user ID for a username.
+
+        Args:
+            username: GitLab username
+
+        Returns:
+            User ID or None if not found
+        """
+        url = f"{self.endpoint}/users"
+        params = {"username": username}
+
+        try:
+            users = self._make_request(url, params)
+            if users and len(users) > 0:
+                return users[0].get("id")
+        except Exception:
+            pass
+
+        return None
+
+    def _get_user_issues(
+        self, user_id: int, start_date: datetime, end_date: datetime
+    ) -> set[str]:
+        """Get projects where user has created issues.
+
+        Args:
+            user_id: GitLab user ID
+            start_date: Start of date range
+            end_date: End of date range
+
+        Returns:
+            Set of project paths
+        """
+        repos = set()
+        url = f"{self.endpoint}/issues"
+        params = {
+            "author_id": user_id,
+            "created_after": start_date.isoformat(),
+            "created_before": end_date.isoformat(),
+            "scope": "all",
+        }
+
+        try:
+            issues = self._make_request(url, params)
+            for issue in issues:
+                project = issue.get("references", {}).get("full", "")
+                if project:
+                    # Remove leading # from references like "#group/project"
+                    project = project.lstrip("#")
+                    repos.add(project)
+        except Exception:
+            pass
+
+        return repos
+
+    def _get_user_merge_requests(
+        self, user_id: int, start_date: datetime, end_date: datetime
+    ) -> set[str]:
+        """Get projects where user has created merge requests.
+
+        Args:
+            user_id: GitLab user ID
+            start_date: Start of date range
+            end_date: End of date range
+
+        Returns:
+            Set of project paths
+        """
+        repos = set()
+        url = f"{self.endpoint}/merge_requests"
+        params = {
+            "author_id": user_id,
+            "created_after": start_date.isoformat(),
+            "created_before": end_date.isoformat(),
+            "scope": "all",
+        }
+
+        try:
+            mrs = self._make_request(url, params)
+            for mr in mrs:
+                project = mr.get("references", {}).get("full", "")
+                if project:
+                    # Remove leading ! from references like "!group/project"
+                    project = project.lstrip("!")
+                    repos.add(project)
+        except Exception:
+            pass
+
+        return repos

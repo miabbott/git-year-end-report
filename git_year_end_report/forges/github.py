@@ -331,3 +331,121 @@ class GitHubClient(ForgeClient):
         ]
 
         return len(user_comments)
+
+    def enumerate_repos(
+        self,
+        usernames: list[str],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> set[str]:
+        """Enumerate repositories where users have been active.
+
+        Uses GitHub's search API to find repositories where the specified
+        users have activity.
+
+        Args:
+            usernames: List of GitHub usernames to search for
+            start_date: Start of date range
+            end_date: End of date range
+
+        Returns:
+            Set of repository identifiers in "owner/repo" format
+        """
+        repos = set()
+
+        for username in usernames:
+            # Search for issues created by user
+            repos.update(
+                self._search_issues(username, start_date, end_date, issue_type="issue")
+            )
+
+            # Search for PRs created by user
+            repos.update(
+                self._search_issues(username, start_date, end_date, issue_type="pr")
+            )
+
+            # Search for issue comments by user
+            repos.update(self._search_comments(username, start_date, end_date))
+
+        return repos
+
+    def _search_issues(
+        self, username: str, start_date: datetime, end_date: datetime, issue_type: str
+    ) -> set[str]:
+        """Search for issues or PRs created by a user.
+
+        Args:
+            username: GitHub username
+            start_date: Start of date range
+            end_date: End of date range
+            issue_type: Either "issue" or "pr"
+
+        Returns:
+            Set of repository identifiers
+        """
+        repos = set()
+        url = f"{self.endpoint}/search/issues"
+
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
+        query = f"author:{username} created:{date_range} type:{issue_type}"
+
+        params = {"q": query, "per_page": 100}
+
+        try:
+            response = self._make_request(url, params)
+            # Search API returns {"items": [...]} format
+            items = response[0].get("items", []) if response else []
+
+            for item in items:
+                repo_url = item.get("repository_url", "")
+                if repo_url:
+                    # Extract owner/repo from URL like https://api.github.com/repos/owner/repo
+                    parts = repo_url.split("/repos/")
+                    if len(parts) == 2:
+                        repos.add(parts[1])
+
+        except Exception:
+            # If search fails, skip this username
+            pass
+
+        return repos
+
+    def _search_comments(
+        self, username: str, start_date: datetime, end_date: datetime
+    ) -> set[str]:
+        """Search for comments made by a user.
+
+        Args:
+            username: GitHub username
+            start_date: Start of date range
+            end_date: End of date range
+
+        Returns:
+            Set of repository identifiers
+        """
+        repos = set()
+        url = f"{self.endpoint}/search/issues"
+
+        date_range = f"{start_date.date().isoformat()}..{end_date.date().isoformat()}"
+        query = f"commenter:{username} created:{date_range}"
+
+        params = {"q": query, "per_page": 100}
+
+        try:
+            response = self._make_request(url, params)
+            # Search API returns {"items": [...]} format
+            items = response[0].get("items", []) if response else []
+
+            for item in items:
+                repo_url = item.get("repository_url", "")
+                if repo_url:
+                    # Extract owner/repo from URL
+                    parts = repo_url.split("/repos/")
+                    if len(parts) == 2:
+                        repos.add(parts[1])
+
+        except Exception:
+            # If search fails, skip this username
+            pass
+
+        return repos

@@ -50,3 +50,25 @@ class ForgeClient(ABC):
             Human-readable name of the forge
         """
         pass
+
+    @abstractmethod
+    def enumerate_repos(
+        self,
+        usernames: list[str],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> set[str]:
+        """Enumerate repositories where users have been active.
+
+        Finds all repositories where the specified users have filed issues,
+        created pull requests, or made comments within the date range.
+
+        Args:
+            usernames: List of usernames to search for
+            start_date: Start of date range
+            end_date: End of date range
+
+        Returns:
+            Set of repository identifiers (e.g., "owner/repo")
+        """
+        pass

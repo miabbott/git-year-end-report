@@ -48,7 +48,7 @@ wheels = [
 [[package]]
 name = "git-year-end-report"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "httpx" },
     { name = "python-dateutil" },

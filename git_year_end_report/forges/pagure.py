@@ -350,3 +350,89 @@ class PagureClient(ForgeClient):
             return comment_count
         except Exception:
             return 0
+
+    def enumerate_repos(
+        self,
+        usernames: list[str],
+        start_date: datetime,
+        end_date: datetime,
+    ) -> set[str]:
+        """Enumerate repositories where users have been active.
+
+        Note: Pagure's API has limited search capabilities, so this
+        implementation may not find all repositories where users are active.
+
+        Args:
+            usernames: List of Pagure usernames to search for
+            start_date: Start of date range
+            end_date: End of date range
+
+        Returns:
+            Set of repository identifiers
+        """
+        repos = set()
+
+        for username in usernames:
+            # Get user's forked projects
+            repos.update(self._get_user_forks(username))
+
+            # Get user's own projects
+            repos.update(self._get_user_projects(username))
+
+        return repos
+
+    def _get_user_forks(self, username: str) -> set[str]:
+        """Get projects forked by a user.
+
+        Args:
+            username: Pagure username
+
+        Returns:
+            Set of project names
+        """
+        repos = set()
+        url = f"{self.endpoint}/user/{username}"
+
+        try:
+            data = self._make_request(url)
+            user_data = data.get("user", {})
+
+            # Get forked repos
+            forks = user_data.get("forks", [])
+            for fork in forks:
+                repo_name = fork.get("fullname", "")
+                if repo_name:
+                    repos.add(repo_name)
+
+        except Exception:
+            pass
+
+        return repos
+
+    def _get_user_projects(self, username: str) -> set[str]:
+        """Get projects owned by a user.
+
+        Args:
+            username: Pagure username
+
+        Returns:
+            Set of project names
+        """
+        repos = set()
+        url = f"{self.endpoint}/user/{username}"
+
+        try:
+            data = self._make_request(url)
+            user_data = data.get("user", {})
+
+            # Get owned repos
+            projects = user_data.get("repos", [])
+            for project in projects:
+                repo_name = project.get("fullname", "")
+                if repo_name:
+                    repos.add(repo_name)
+
+        except Exception:
+            pass
+
+        return repos

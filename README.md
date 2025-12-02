@@ -120,6 +120,10 @@ git-year-end-report generate --config config.yaml --output my-report.md
 # Fetch from specific forge(s) only (useful for testing)
 git-year-end-report generate --config config.yaml --forge github
 git-year-end-report generate --config config.yaml -f github -f gitlab
+
+# Enumerate repositories where users have been active
+git-year-end-report enumerate --config config.yaml
+git-year-end-report enumerate --config config.yaml --forge github
 ```
 
 ### Running from Repository without Installation
@@ -149,6 +153,25 @@ python -m git_year_end_report.cli generate --config config.yaml
 # Or use the script directly from the venv
 .venv/bin/git-year-end-report generate --config config.yaml
 ```
+
+### Discovering Repositories (Enumerate Command)
+
+The `enumerate` command helps you discover all repositories where your team members have been active:
+
+```bash
+# Enumerate all configured forges
+git-year-end-report enumerate --config config.yaml
+
+# Enumerate specific forge only
+git-year-end-report enumerate --config config.yaml --forge github
+```
+
+The command will search for repositories where the configured users have:
+- Filed issues
+- Created pull requests
+- Made comments on issues or PRs
+
+The output is formatted as YAML that can be directly copied into your config file, making it easy to build your configuration incrementally.
 
 ### Container Usage
 
